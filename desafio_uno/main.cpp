@@ -36,6 +36,22 @@
 #include <QCoreApplication>
 #include <QImage>
 
+unsigned char* loadPixels(QString input, int &width, int &height);
+unsigned char* loadPixels2(QString input);
+bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
+unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels);
+bool verificacion_imagenes(unsigned char* resolver ,unsigned char* gaussiana,unsigned char* mascara,int alto1,int alto2,int ancho1, int ancho2);
+bool verificaciontxt(unsigned int* tmt);
+bool prueba_xor(unsigned char &res_esperado,unsigned char* gaussiana,unsigned char* resolver, int &semilla);
+void imagen_xor(unsigned char* gaussiana,unsigned char* resolver,int &bits);
+unsigned char rotar_r(unsigned char byte, int n_bits);
+unsigned char rotar_l(unsigned char byte, int n_bits);
+bool prueba_l(unsigned char* resolver,unsigned char &res_esperado,int &semilla,int &n_bits);
+bool prueba_r(unsigned char* resolver,unsigned char &res_esperado,int &semilla, int &n_bits);
+void imagen_rotar_l(unsigned char *resolver, int &n_bits, int &bits);
+void imagen_rotar_r(unsigned char* resolver,int &n_bits,int &bits);
+
+
 using namespace std;
 unsigned char* loadPixels(QString input, int &width, int &height);
 bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
@@ -275,6 +291,133 @@ unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixel
     // Retornar el puntero al arreglo con los datos RGB
     return RGB;
 }
+
+
+unsigned char* loadPixels2(QString input){
+    /*
+ * @brief Carga una imagen BMP desde un archivo y extrae los datos de píxeles en formato RGB.
+ *
+ * Esta función utiliza la clase QImage de Qt para abrir una imagen en formato BMP, convertirla al
+ * formato RGB888 (24 bits: 8 bits por canal), y copiar sus datos de píxeles a un arreglo dinámico
+ * de tipo unsigned char. El arreglo contendrá los valores de los canales Rojo, Verde y Azul (R, G, B)
+ * de cada píxel de la imagen, sin rellenos (padding).
+ *
+ * @param input Ruta del archivo de imagen BMP a cargar (tipo QString).
+ * @param width Parámetro de salida que contendrá el ancho de la imagen cargada (en píxeles).
+ * @param height Parámetro de salida que contendrá la altura de la imagen cargada (en píxeles).
+ * @return Puntero a un arreglo dinámico que contiene los datos de los píxeles en formato RGB. *         Devuelve nullptr si la imagen no pudo cargarse.
+ *
+
+ * @note Es responsabilidad del usuario liberar la memoria asignada al arreglo devuelto usando `delete[]`.
+ */
+
+    // Cargar la imagen BMP desde el archivo especificado (usando Qt)
+    QImage imagen(input);
+
+    // Verifica si la imagen fue cargada correctamente
+    if (imagen.isNull()) {
+        cout << "Error: No se pudo cargar la imagen BMP." << std::endl;
+        return nullptr; // Retorna un puntero nulo si la carga falló
+    }
+
+    // Convierte la imagen al formato RGB888 (3 canales de 8 bits sin transparencia)
+    imagen = imagen.convertToFormat(QImage::Format_RGB888);
+
+    // Obtiene el ancho y el alto de la imagen cargada
+    int width = imagen.width();
+    int height = imagen.height();
+
+    // Calcula el tamaño total de datos (3 bytes por píxel: R, G, B)
+    int dataSize = width * height * 3;
+
+    // Reserva memoria dinámica para almacenar los valores RGB de cada píxel
+    unsigned char* pixelData = new unsigned char[dataSize];
+
+    // Copia cada línea de píxeles de la imagen Qt a nuestro arreglo lineal
+    for (int y = 0; y < height; ++y) {
+        const uchar* srcLine = imagen.scanLine(y);              // Línea original de la imagen con posible padding
+        unsigned char* dstLine = pixelData + y * width * 3;     // Línea destino en el arreglo lineal sin padding
+        memcpy(dstLine, srcLine, width * 3);                    // Copia los píxeles RGB de esa línea (sin padding)
+    }
+
+    // Retorna el puntero al arreglo de datos de píxeles cargado en memoria
+    return pixelData;
+}
+
+bool verificacion_imagenes(unsigned char* resolver ,unsigned char* gaussiana,unsigned char* mascara,int alto1,int alto2,int ancho1, int ancho2){
+    if (!resolver || !gaussiana || !mascara || alto1 != alto2 || ancho1 != ancho2) {
+        return true;
+    }
+    return false;
+}
+
+bool verificaciontxt(unsigned int* tmt){
+    if (!tmt) {
+        return true;
+    }
+    return false;
+}
+
+bool prueba_xor(unsigned char &res_esperado,unsigned char* gaussiana,unsigned char* resolver, int &semilla){
+    unsigned char determinar = gaussiana[semilla] ^ resolver[semilla];
+    if ( res_esperado==determinar){
+        return true;
+    }
+    return false;
+}
+
+void imagen_xor(unsigned char* gaussiana,unsigned char* resolver,int &bits){
+    for(int i=0; i<bits ;i++ ){
+        resolver[i]= gaussiana[i] ^ resolver[i];
+    }
+}
+
+bool prueba_l(unsigned char* resolver,unsigned char &res_esperado,int &semilla,int &n_bits){
+    for(int i=1;i<8;i++){
+        if(res_esperado==rotar_l(resolver[semilla],i)){
+            n_bits=i;
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned char rotar_l(unsigned char byte, int n_bits) {
+    n_bits = n_bits % 8;
+    return ((byte << n_bits) | (byte >> (8 - n_bits))) & 0xFF;
+}
+
+bool prueba_r(unsigned char* resolver,unsigned char &res_esperado,int &semilla,int &n_bits){
+    for(int i=1;i<8;i++){
+        if(res_esperado==rotar_r(resolver[semilla],i)){
+            n_bits=i;
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned char rotar_r(unsigned char byte, int n_bits) {
+    n_bits = n_bits % 8;
+    return ((byte >> n_bits) | (byte << (8 - n_bits))) & 0xFF;
+}
+
+void imagen_rotar_l(unsigned char* resolver,int &n_bits,int &bits){
+    for(int i=0;i<bits;i++){
+        resolver[i]= rotar_l(resolver[i],n_bits);
+    }
+
+}
+
+void imagen_rotar_r(unsigned char* resolver,int &n_bits,int &bits){
+    for(int i=0;i<bits;i++){
+        resolver[i]= rotar_r(resolver[i],n_bits);
+    }
+
+}
+
+
+
 
 
 
