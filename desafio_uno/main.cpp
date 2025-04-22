@@ -30,94 +30,126 @@
  * Fecha: 06/04/2025
  * Asistencia de ChatGPT para mejorar la forma y presentación del código fuente
  */
-
-#include <fstream>
-#include <iostream>
 #include <QCoreApplication>
 #include <QImage>
+#include <QFile>
+#include <QString>
+#include <iostream>
+#include <fstream>
+using namespace std;
 
 unsigned char* loadPixels(QString input, int &width, int &height);
 unsigned char* loadPixels2(QString input);
 bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
-unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels);
+
 bool verificacion_imagenes(unsigned char* resolver ,unsigned char* gaussiana,unsigned char* mascara,int alto1,int alto2,int ancho1, int ancho2);
 bool verificaciontxt(unsigned int* tmt);
 bool prueba_xor(unsigned char &res_esperado,unsigned char* gaussiana,unsigned char* resolver, int &semilla);
 void imagen_xor(unsigned char* gaussiana,unsigned char* resolver,int &bits);
-unsigned char rotar_r(unsigned char byte, int n_bits);
-unsigned char rotar_l(unsigned char byte, int n_bits);
-bool prueba_l(unsigned char* resolver,unsigned char &res_esperado,int &semilla,int &n_bits);
-bool prueba_r(unsigned char* resolver,unsigned char &res_esperado,int &semilla, int &n_bits);
-void imagen_rotar_l(unsigned char *resolver, int &n_bits, int &bits);
-void imagen_rotar_r(unsigned char* resolver,int &n_bits,int &bits);
-
-
-using namespace std;
-unsigned char* loadPixels(QString input, int &width, int &height);
-bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
-unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels);
+unsigned char rotar_r(unsigned char byte, short int n_bits);
+unsigned char rotar_l(unsigned char byte, short int n_bits);
+bool prueba_l(unsigned char* resolver,unsigned char &res_esperado,int &semilla,short &n_bits);
+bool prueba_r(unsigned char* resolver,unsigned char &res_esperado,int &semilla, short int &n_bits);
+void imagen_rotar_l(unsigned char *resolver, short int &n_bits, int &bits);
+void imagen_rotar_r(unsigned char* resolver,short int &n_bits,int &bits);
+unsigned int* loadSeedMasking2(const char* nombreArchivo, int &seed);
 
 int main()
 {
-    // Definición de rutas de archivo de entrada (imagen original) y salida (imagen modificada)
-    QString archivoEntrada = "C:/Users/kewi/Downloads/DesafíoI Publicar/DesafíoI/Caso 1/I_O.bmp";
-    QString archivoSalida = "C:/Users/kewi/Downloads/DesafíoI Publicar/DesafíoI/Code/I_r2.bmp";
+    // Definición de rutas de archivo de entrada (imagen original) y resultado (imagen modificada)
+    QString imagen_resolver ="C:/Users/kewi/PRUEBAS/resultados/resultado2.bmp";
+    QString imagengaussiana ="C:/Users/kewi/PRUEBAS/prueba12/Caso 1/I_M.bmp";
+    QString mascara = "C:/Users/kewi/PRUEBAS/prueba12/Caso 1/M.bmp";
+    QString resultado= "C:/Users/kewi/PRUEBAS/resultados/resultado3.bmp";
+    const char* ar_pista  = "C:/Users/kewi/PRUEBAS/prueba12/Caso 1/M0.txt";
+
+
 
     // Variables para almacenar las dimensiones de la imagen
-    int height = 0;
-    int width = 0;
+    int altura_resolver = 0;
+    int ancho_resolver = 0;
+    int altura_gaussiana = 0;
+    int ancho_gaussiana = 0;
+
+
 
     // Carga la imagen BMP en memoria dinámica y obtiene ancho y alto
-    unsigned char *pixelData = loadPixels(archivoEntrada, width, height);
+    unsigned char *datos_resolver= loadPixels(imagen_resolver, ancho_resolver, altura_resolver);
+    unsigned char *datos_gaussiana= loadPixels(imagengaussiana, ancho_gaussiana, altura_gaussiana);
+    unsigned char *datos_mascara= loadPixels2(mascara);
 
-    // Simula una modificación de la imagen asignando valores RGB incrementales
-    // (Esto es solo un ejemplo de manipulación artificial)
-    /*for (int i = 0; i < width * height * 3; i += 3) {
-        pixelData[i] = i;     // Canal rojo
-        pixelData[i + 1] = i; // Canal verde
-        pixelData[i + 2] = i; // Canal azul
-    }*/
-
-    for (int i = 0; i < width* height * 3; i += 3) {
-        cout << "Pixel " << i / 3 << ": ("
-             << pixelData[i] << ", "
-             << pixelData[i + 1] << ", "
-             << pixelData[i + 2] << ")" << endl;
+    //verificaion que los dotos se cargan correctamente
+    if(verificacion_imagenes(datos_resolver ,datos_gaussiana,datos_mascara,altura_resolver,altura_gaussiana,ancho_resolver, ancho_gaussiana)){
+        cout  <<"Error en carga de imágenes. " << endl;
+        cout << "           O " << endl;
+        cout << "los tamaños de la imagen gausiana y distorcionada no funcionan " << endl;
+        delete[] datos_gaussiana;
+        delete[] datos_mascara;
+        delete[] datos_resolver;
+        return -1;
     }
-    /*
-    // Exporta la imagen modificada a un nuevo archivo BMP
-    bool exportI = exportImage(pixelData, width, height, archivoSalida);
+    int cant_bit= altura_resolver * ancho_resolver * 3;
 
-    // Muestra si la exportación fue exitosa (true o false)
-    cout << exportI << endl;
+    int semilla=0;
+    unsigned int *pista = loadSeedMasking2(ar_pista, semilla);
+    if (verificaciontxt(pista)){
+        cout  <<"error en subir el archivo " << endl;
+        delete[] datos_gaussiana;
+        delete[] datos_mascara;
+        delete[] datos_resolver;
+        delete[] pista;
+        return -1;
+    }
+    // resultado esperado == pista[0]-mascara[0]
+    unsigned char res_esperado = pista[0]-datos_mascara[0];
+    delete[] datos_mascara;
+    delete[] pista;
 
-    // Libera la memoria usada para los píxeles
-    delete[] pixelData;
-    pixelData = nullptr;
+    // prueba de xor
+    if(prueba_xor(res_esperado,datos_gaussiana,datos_resolver,semilla)){
+        imagen_xor(datos_gaussiana,datos_resolver,cant_bit);
+        bool exportI = exportImage(datos_resolver, ancho_resolver, altura_resolver, resultado);
+        cout << exportI<<endl;
+        cout << "a la imagen se le hizo un xOr";
+        delete[] datos_gaussiana;
+        delete[] datos_resolver;
+        return 0;
+    }
+    delete[] datos_gaussiana;
 
-    // Variables para almacenar la semilla y el número de píxeles leídos del archivo de enmascaramiento
-    int seed = 0;
-    int n_pixels = 0;
 
-    // Carga los datos de enmascaramiento desde un archivo .txt (semilla + valores RGB)
-    unsigned int *maskingData = loadSeedMasking("C:/Users/kewi/OneDrive/Documentos/M6.txt", seed, n_pixels);
+    //pruebas rotaciones
 
-    // Muestra en consola los primeros valores RGB leídos desde el archivo de enmascaramiento
-    for (int i = 0; i < n_pixels * 3; i += 3) {
-        cout << "Pixel " << i / 3 << ": ("
-             << maskingData[i] << ", "
-             << maskingData[i + 1] << ", "
-             << maskingData[i + 2] << ")" << endl;
+    short int n_bits=0;
+
+    bool derecha=prueba_r(datos_resolver,res_esperado,semilla,n_bits);
+    if (derecha){
+        imagen_rotar_r(datos_resolver,n_bits,cant_bit);
+        bool exportI = exportImage(datos_resolver, ancho_resolver, altura_resolver, resultado);
+        cout << exportI<<endl;
+        cout << "a la imagen se le hizo una ratacion a la derecha de "<< n_bits<<endl;
+        delete[] datos_resolver;
+        return 0;
     }
 
-    // Libera la memoria usada para los datos de enmascaramiento
-    if (maskingData != nullptr){
-        delete[] maskingData;
-        maskingData = nullptr;
+    bool izquierda=prueba_l(datos_resolver,res_esperado,semilla,n_bits);
+    if(izquierda){
+        imagen_rotar_l(datos_resolver,n_bits,cant_bit);
+        bool exportI = exportImage(datos_resolver, ancho_resolver, altura_resolver, resultado);
+        cout << exportI<<endl;
+        cout << "a la imagen se le hizo una ratacion a la izquierda de "<< n_bits<<endl;
+        delete[] datos_resolver;
+        return 0;
     }
+
+    else{
+        cout<< "no se encontro ninguna tranformacion"<<endl;
+        delete [] datos_resolver;
+        return 0;
+    }
+
 
     return 0; // Fin del programa
-*/
 }
 
 
@@ -217,7 +249,7 @@ bool exportImage(unsigned char* pixelData, int width,int height, QString archivo
 
 }
 
-unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels){
+unsigned int* loadSeedMasking2(const char* nombreArchivo, int &seed){
     /*
  * @brief Carga la semilla y los resultados del enmascaramiento desde un archivo de texto.
  *
@@ -238,6 +270,7 @@ unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixel
  */
 
     // Abrir el archivo que contiene la semilla y los valores RGB
+    int n_pixels =0;
     ifstream archivo(nombreArchivo);
     if (!archivo.is_open()) {
         // Verificar si el archivo pudo abrirse correctamente
@@ -285,15 +318,15 @@ unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixel
     archivo.close();
 
     // Mostrar información de control en consola
-    cout << "Semilla: " << seed << endl;
-    cout << "Cantidad de píxeles leídos: " << n_pixels << endl;
+    //cout << "Semilla: " << seed << endl;
+    //cout << "Cantidad de píxeles leídos: " << n_pixels << endl;
 
     // Retornar el puntero al arreglo con los datos RGB
     return RGB;
 }
 
-
 unsigned char* loadPixels2(QString input){
+
     /*
  * @brief Carga una imagen BMP desde un archivo y extrae los datos de píxeles en formato RGB.
  *
@@ -303,8 +336,6 @@ unsigned char* loadPixels2(QString input){
  * de cada píxel de la imagen, sin rellenos (padding).
  *
  * @param input Ruta del archivo de imagen BMP a cargar (tipo QString).
- * @param width Parámetro de salida que contendrá el ancho de la imagen cargada (en píxeles).
- * @param height Parámetro de salida que contendrá la altura de la imagen cargada (en píxeles).
  * @return Puntero a un arreglo dinámico que contiene los datos de los píxeles en formato RGB. *         Devuelve nullptr si la imagen no pudo cargarse.
  *
 
@@ -345,6 +376,24 @@ unsigned char* loadPixels2(QString input){
 }
 
 bool verificacion_imagenes(unsigned char* resolver ,unsigned char* gaussiana,unsigned char* mascara,int alto1,int alto2,int ancho1, int ancho2){
+    /*
+     *  utilidad: verifica que los datos de las imagenes que se hayan cargado y
+     *  que los tamaños de las imagenes de ruido y distorcionada sean iguales
+     *
+     *
+     *  @param resolver puntero de la array de imagen distorcionada
+     *  @param gaussiana  puntero de la array de imagen gausinana
+     *  @param mascara  puntero de la array de imagen de la mascra
+     *  @param alto1 valor int dela altura de una de las imagenes de gaussiana o distorcinada
+     *  @param alto2 valor int dela altura de una de las imagenes de gaussiana o distorcinada
+     *  @param ancho1 valor int dela altura de una de las imagenes de gaussiana o distorcinada
+     *  @param ancho2 valor int dela altura de una de las imagenes de gaussiana o distorcinada
+     *
+     *  @return returna true significa que un datos de las imagenes no esta bien cargadas
+     *   o los tamaños de las imagenes gaussiana y distorcinada no son iguales
+     */
+
+
     if (!resolver || !gaussiana || !mascara || alto1 != alto2 || ancho1 != ancho2) {
         return true;
     }
@@ -352,6 +401,16 @@ bool verificacion_imagenes(unsigned char* resolver ,unsigned char* gaussiana,uns
 }
 
 bool verificaciontxt(unsigned int* tmt){
+    /*
+     * utilidad: verificaion de los datos del archivo se hayan cargado correctamente
+     *
+     * @param tmt puntero de la array de los valores del txt
+     *
+     * @return retorna true significa que no se subieron los datos correctamente
+     *
+     */
+
+
     if (!tmt) {
         return true;
     }
@@ -359,6 +418,18 @@ bool verificaciontxt(unsigned int* tmt){
 }
 
 bool prueba_xor(unsigned char &res_esperado,unsigned char* gaussiana,unsigned char* resolver, int &semilla){
+
+    /*
+     * utilidad: comprueba que el valor esperado sea igual al calculado, en el caso de xor
+     *
+     *@param res_esperado varibale que contiene el valor esperado
+     *@param gaussiana  puntero de la array de imagen gausinana
+     *@param resolver  puntero de la array de imagen resolver
+     *@param semilla variable que contiene el valor de donde se aplica la mascara
+     *
+     *
+     *@return retorna true si los valores son iguales, significando que se tiene que hacer un xor
+     */
     unsigned char determinar = gaussiana[semilla] ^ resolver[semilla];
     if ( res_esperado==determinar){
         return true;
@@ -367,12 +438,30 @@ bool prueba_xor(unsigned char &res_esperado,unsigned char* gaussiana,unsigned ch
 }
 
 void imagen_xor(unsigned char* gaussiana,unsigned char* resolver,int &bits){
+    /*
+     *funcion: hacer la operacion xor a toda la datos
+     *
+     *@param bits variables con la cantidad de bits de la imagen distorcionada
+     *@param gaussiana  puntero de la array de imagen gausinana
+     *@param resolver  puntero de la array de imagen resolver
+     *
+     */
     for(int i=0; i<bits ;i++ ){
         resolver[i]= gaussiana[i] ^ resolver[i];
     }
 }
 
-bool prueba_l(unsigned char* resolver,unsigned char &res_esperado,int &semilla,int &n_bits){
+bool prueba_l(unsigned char* resolver,unsigned char &res_esperado,int &semilla,short int &n_bits){
+    /*
+     *funcion: determina si se hizo una rotacion de bits a la izquiedad
+     *
+     *@param res_esperado varibale que contiene el valor esperado
+     *@param semilla  varibale que contiene el valor de donde se aplica la mascara
+     *@param n_bits varibale que contiene el valor de cuantos bits rotamos
+     *@param resolver  puntero de la array de imagen resolver
+     *
+     *@return retorna true si el valor concide con el valor esperado
+     */
     for(int i=1;i<8;i++){
         if(res_esperado==rotar_l(resolver[semilla],i)){
             n_bits=i;
@@ -382,12 +471,30 @@ bool prueba_l(unsigned char* resolver,unsigned char &res_esperado,int &semilla,i
     return false;
 }
 
-unsigned char rotar_l(unsigned char byte, int n_bits) {
+unsigned char rotar_l(unsigned char byte, short int n_bits) {
+    /*
+     * funcion: rota un una cantidad de n de bit el valor de una variable unsigned char a la izquierda
+     *
+     * @param byte varible que vamos aplicarle la rotacion
+     * @param n_bits varibale que contiene el valor de cuantos bits rotamos
+     *
+     * @return retorna el valor de la variable rotada la cantidad de bits
+     */
     n_bits = n_bits % 8;
     return ((byte << n_bits) | (byte >> (8 - n_bits))) & 0xFF;
 }
 
-bool prueba_r(unsigned char* resolver,unsigned char &res_esperado,int &semilla,int &n_bits){
+bool prueba_r(unsigned char* resolver,unsigned char &res_esperado,int &semilla,short int &n_bits){
+    /*
+     *funcion: determina si se hizo una rotacion de bits a la derecha
+     *
+     *@param res_esperado varibale que contiene el valor esperado
+     *@param semilla  varibale que contiene el valor de donde se aplica la mascara
+     *@param n_bits varibale que contiene el valor de cuantos bits rotamos
+     *@param resolver  puntero de la array de imagen resolver
+     *
+     *@return retorna true si el valor concide con el valor esperado
+     */
     for(int i=1;i<8;i++){
         if(res_esperado==rotar_r(resolver[semilla],i)){
             n_bits=i;
@@ -397,37 +504,46 @@ bool prueba_r(unsigned char* resolver,unsigned char &res_esperado,int &semilla,i
     return false;
 }
 
-unsigned char rotar_r(unsigned char byte, int n_bits) {
+unsigned char rotar_r(unsigned char byte,short int n_bits) {
+    /*
+     * funcion: rota un una cantidad de n de bit el valor de una variable unsigned char a la derecha
+     *
+     * @param byte varible que vamos aplicarle la rotacion
+     * @param n_bits varibale que contiene el valor de cuantos bits rotamos
+     * @param resolver  puntero de la array de imagen resolver
+     * @return retorna el valor de la variable rotada la cantidad de bits
+     */
     n_bits = n_bits % 8;
     return ((byte >> n_bits) | (byte << (8 - n_bits))) & 0xFF;
 }
 
-void imagen_rotar_l(unsigned char* resolver,int &n_bits,int &bits){
+void imagen_rotar_l(unsigned char* resolver,short int &n_bits,int &bits){
+    /*
+     *funcion: rota todos los valores de la imagen, una cantinada de n bits a la izquierdad
+     *
+     * @param resolver  puntero de la array de imagen resolver
+     * @param n_bits varibale que contiene el valor de cuantos bits rotamos
+     * @param bits variables con la cantidad de bits de la imagen distorcionada
+     */
     for(int i=0;i<bits;i++){
         resolver[i]= rotar_l(resolver[i],n_bits);
     }
 
 }
 
-void imagen_rotar_r(unsigned char* resolver,int &n_bits,int &bits){
+void imagen_rotar_r(unsigned char* resolver,short int &n_bits,int &bits){
+    /*
+     *funcion: rota todos los valores de la imagen, una cantinada de n bits a la derecha
+     *
+     * @param resolver  puntero de la array de imagen resolver
+     * @param n_bits varibale que contiene el valor de cuantos bits rotamos
+     * @param bits variables con la cantidad de bits de la imagen distorcionada
+     */
     for(int i=0;i<bits;i++){
         resolver[i]= rotar_r(resolver[i],n_bits);
     }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
