@@ -56,12 +56,13 @@ unsigned int* loadSeedMasking2(const char* nombreArchivo, int &seed);
 
 int main()
 {
-    // Definición de rutas de archivo de entrada (imagen original) y resultado (imagen modificada)
-    QString imagen_resolver ="C:/Users/kewi/PRUEBAS/resultados/resultado2.bmp";
-    QString imagengaussiana ="C:/Users/kewi/PRUEBAS/prueba12/Caso 1/I_M.bmp";
-    QString mascara = "C:/Users/kewi/PRUEBAS/prueba12/Caso 1/M.bmp";
-    QString resultado= "C:/Users/kewi/PRUEBAS/resultados/resultado3.bmp";
-    const char* ar_pista  = "C:/Users/kewi/PRUEBAS/prueba12/Caso 1/M0.txt";
+    int cantidad_txt=6; // ingrese el numero del ultimo archivo txt.
+    // Definición de rutas de archivo de entrada (imagen original), resultado (imagen modificada), imagen de ruido gausiano, mascara
+    QString imagen_resolver ="C:/Users/kewi/terra/I_D.bmp";
+    QString imagengaussiana ="C:/Users/kewi/terra/I_M.bmp";
+    QString mascara = "C:/Users/kewi/terra/M.bmp";
+    QString resultado= "C:/Users/kewi/terra/resutado.bmp";
+    //const  /char* ar_pista  = "*/
 
 
 
@@ -90,68 +91,61 @@ int main()
     }
     int cant_bit= altura_resolver * ancho_resolver * 3;
 
-    int semilla=0;
-    unsigned int *pista = loadSeedMasking2(ar_pista, semilla);
-    if (verificaciontxt(pista)){
-        cout  <<"error en subir el archivo " << endl;
-        delete[] datos_gaussiana;
-        delete[] datos_mascara;
-        delete[] datos_resolver;
-        delete[] pista;
-        return -1;
-    }
-    // resultado esperado == pista[0]-mascara[0]
-    unsigned char res_esperado = pista[0]-datos_mascara[0];
-    delete[] datos_mascara;
-    delete[] pista;
 
-    // prueba de xor
-    if(prueba_xor(res_esperado,datos_gaussiana,datos_resolver,semilla)){
-        imagen_xor(datos_gaussiana,datos_resolver,cant_bit);
-        bool exportI = exportImage(datos_resolver, ancho_resolver, altura_resolver, resultado);
-        cout << exportI<<endl;
-        cout << "a la imagen se le hizo un xOr";
-        delete[] datos_gaussiana;
-        delete[] datos_resolver;
-        return 0;
+    for(int i=cantidad_txt ;i>=0;i--){
+        QString nombreArchivoTxt = "C:/Users/kewi/terra" + QString("/M%1.txt").arg(i);
+        int semilla=0;
+        unsigned int *pista = loadSeedMasking2( nombreArchivoTxt.toStdString().c_str(), semilla);
+        if (verificaciontxt(pista)){
+            cout  <<"error en subir el archivo " << endl;
+            delete[] datos_gaussiana;
+            delete[] datos_mascara;
+            delete[] datos_resolver;
+            delete[] pista;
+            return -1;
+        }
+        // resultado esperado == pista[0]-mascara[0]
+        unsigned char res_esperado = pista[0]-datos_mascara[0];
+        delete pista;
+
+        // prueba de xor
+        if(prueba_xor(res_esperado,datos_gaussiana,datos_resolver,semilla)){
+            imagen_xor(datos_gaussiana,datos_resolver,cant_bit);
+            cout << "a la imagen se le hizo un xOr";
+            cout << "  "<<endl;
+        }
+        else{
+            //pruebas rotaciones
+
+            short int n_bits=0;
+            bool izquierda=prueba_l(datos_resolver,res_esperado,semilla,n_bits);
+            bool derecha=prueba_r(datos_resolver,res_esperado,semilla,n_bits);
+            if (derecha){
+                imagen_rotar_r(datos_resolver,n_bits,cant_bit);
+                cout << "a la imagen se le hizo una ratacion a la derecha de "<< n_bits<<endl;
+                cout << "  "<<endl;
+            }
+            else if(izquierda){
+                imagen_rotar_l(datos_resolver,n_bits,cant_bit);
+                bool exportI = exportImage(datos_resolver, ancho_resolver, altura_resolver, resultado);
+                cout << exportI<<endl;
+                cout << "a la imagen se le hizo una ratacion a la izquierda de "<< n_bits<<endl;
+                cout << "  "<<endl;
+            }
+
+            else{
+                cout<< "no se encontro ninguna tranformacion"<<endl;
+            }
+        }
     }
+    bool exportI = exportImage(datos_resolver, ancho_resolver, altura_resolver, resultado);
     delete[] datos_gaussiana;
+    delete[] datos_mascara;
+    delete[] datos_resolver;
 
 
-    //pruebas rotaciones
-
-    short int n_bits=0;
-
-    bool derecha=prueba_r(datos_resolver,res_esperado,semilla,n_bits);
-    if (derecha){
-        imagen_rotar_r(datos_resolver,n_bits,cant_bit);
-        bool exportI = exportImage(datos_resolver, ancho_resolver, altura_resolver, resultado);
-        cout << exportI<<endl;
-        cout << "a la imagen se le hizo una ratacion a la derecha de "<< n_bits<<endl;
-        delete[] datos_resolver;
-        return 0;
-    }
-
-    bool izquierda=prueba_l(datos_resolver,res_esperado,semilla,n_bits);
-    if(izquierda){
-        imagen_rotar_l(datos_resolver,n_bits,cant_bit);
-        bool exportI = exportImage(datos_resolver, ancho_resolver, altura_resolver, resultado);
-        cout << exportI<<endl;
-        cout << "a la imagen se le hizo una ratacion a la izquierda de "<< n_bits<<endl;
-        delete[] datos_resolver;
-        return 0;
-    }
-
-    else{
-        cout<< "no se encontro ninguna tranformacion"<<endl;
-        delete [] datos_resolver;
-        return 0;
-    }
-
-
-    return 0; // Fin del programa
+    return exportI; // Fin del programa
 }
-
 
 unsigned char* loadPixels(QString input, int &width, int &height){
     /*
