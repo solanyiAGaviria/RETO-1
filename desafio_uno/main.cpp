@@ -32,8 +32,6 @@
  */
 #include <QCoreApplication>
 #include <QImage>
-#include <QFile>
-#include <QString>
 #include <iostream>
 #include <fstream>
 using namespace std;
@@ -62,7 +60,6 @@ int main()
     QString imagengaussiana ="C:/Users/kewi/terra/I_M.bmp";
     QString mascara = "C:/Users/kewi/terra/M.bmp";
     QString resultado= "C:/Users/kewi/terra/resutado.bmp";
-    //const  /char* ar_pista  = "*/
 
 
 
@@ -106,7 +103,7 @@ int main()
         }
         // resultado esperado == pista[0]-mascara[0]
         unsigned char res_esperado = pista[0]-datos_mascara[0];
-        delete pista;
+        delete[] pista;
 
         // prueba de xor
         if(prueba_xor(res_esperado,datos_gaussiana,datos_resolver,semilla)){
