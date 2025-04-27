@@ -34,36 +34,40 @@
 #include <QImage>
 #include <iostream>
 #include <fstream>
+#include <QString>
 using namespace std;
 
 unsigned char* loadPixels(QString input, int &width, int &height);
 unsigned char* loadPixels2(QString input);
 bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
 
-bool verificacion_imagenes(unsigned char* resolver ,unsigned char* gaussiana,unsigned char* mascara,int alto1,int alto2,int ancho1, int ancho2);
-bool verificaciontxt(unsigned int* tmt);
-bool prueba_xor(unsigned char &res_esperado,unsigned char* gaussiana,unsigned char* resolver, int &semilla);
-void imagen_xor(unsigned char* gaussiana,unsigned char* resolver,int &bits);
-unsigned char rotar_r(unsigned char byte, short int n_bits);
-unsigned char rotar_l(unsigned char byte, short int n_bits);
 bool prueba_l(unsigned char* resolver,unsigned char &res_esperado,int &semilla,short &n_bits);
 bool prueba_r(unsigned char* resolver,unsigned char &res_esperado,int &semilla, short int &n_bits);
+bool prueba_xor(unsigned char &res_esperado,unsigned char* gaussiana,unsigned char* resolver, int &semilla);
+bool verificacion_imagenes(unsigned char* resolver ,unsigned char* gaussiana,unsigned char* mascara,int alto1,int alto2,int ancho1, int ancho2);
+bool verificaciontxt(unsigned int* tmt);
+unsigned char rotar_l(unsigned char byte, short int n_bits);
+unsigned char rotar_r(unsigned char byte, short int n_bits);
+unsigned int* loadSeedMasking2(const char* nombreArchivo, int &seed);
 void imagen_rotar_l(unsigned char *resolver, short int &n_bits, int &bits);
 void imagen_rotar_r(unsigned char* resolver,short int &n_bits,int &bits);
-unsigned int* loadSeedMasking2(const char* nombreArchivo, int &seed);
+void imagen_xor(unsigned char* gaussiana,unsigned char* resolver,int &bits);
 
 int main()
 {
-    int cantidad_txt=6; // ingrese el numero del ultimo archivo txt.
-    // Definición de rutas de archivo de entrada (imagen original), resultado (imagen modificada), imagen de ruido gausiano, mascara
-    QString imagen_resolver ="C:/Users/kewi/terra/I_D.bmp";
-    QString imagengaussiana ="C:/Users/kewi/terra/I_M.bmp";
-    QString mascara = "C:/Users/kewi/terra/M.bmp";
-    QString resultado= "C:/Users/kewi/terra/resutado.bmp";
+    string lugar;
+    cout << "el nombre de la carpeta donde lo tiene guardado el caso: ";
+    cin >> lugar;
+    int cantidad_txt=0; // ingrese el numero del ultimo archivo txt.
+    cout <<"ingrese la cantidad de archivos txt(el numero mas grande de los archivos): ";
+    cin >> cantidad_txt ;
+    QString carpeta= QString::fromStdString(lugar);
+    QString imagen_resolver =carpeta+"/I_D.bmp";
+    QString imagengaussiana =carpeta+"/I_M.bmp";
+    QString mascara = carpeta+"/M.bmp";
+    QString resultado= carpeta+"/resutado.bmp";
 
 
-
-    // Variables para almacenar las dimensiones de la imagen
     int altura_resolver = 0;
     int ancho_resolver = 0;
     int altura_gaussiana = 0;
@@ -90,7 +94,7 @@ int main()
 
 
     for(int i=cantidad_txt ;i>=0;i--){
-        QString nombreArchivoTxt = "C:/Users/kewi/terra" + QString("/M%1.txt").arg(i);
+        QString nombreArchivoTxt =carpeta+ QString("/M%1.txt").arg(i);
         int semilla=0;
         unsigned int *pista = loadSeedMasking2( nombreArchivoTxt.toStdString().c_str(), semilla);
         if (verificaciontxt(pista)){
@@ -115,14 +119,12 @@ int main()
             //pruebas rotaciones
 
             short int n_bits=0;
-            bool izquierda=prueba_l(datos_resolver,res_esperado,semilla,n_bits);
-            bool derecha=prueba_r(datos_resolver,res_esperado,semilla,n_bits);
-            if (derecha){
+            if (prueba_r(datos_resolver,res_esperado,semilla,n_bits)){
                 imagen_rotar_r(datos_resolver,n_bits,cant_bit);
                 cout << "a la imagen se le hizo una ratacion a la derecha de "<< n_bits<<endl;
                 cout << "  "<<endl;
             }
-            else if(izquierda){
+            else if(prueba_l(datos_resolver,res_esperado,semilla,n_bits)){
                 imagen_rotar_l(datos_resolver,n_bits,cant_bit);
                 bool exportI = exportImage(datos_resolver, ancho_resolver, altura_resolver, resultado);
                 cout << exportI<<endl;
@@ -143,6 +145,7 @@ int main()
 
     return exportI; // Fin del programa
 }
+
 
 unsigned char* loadPixels(QString input, int &width, int &height){
     /*
@@ -231,11 +234,11 @@ bool exportImage(unsigned char* pixelData, int width,int height, QString archivo
     if (!outputImage.save(archivoSalida, "BMP")) {
         // Si hubo un error al guardar, mostrar mensaje de error
         cout << "Error: No se pudo guardar la imagen BMP modificada.";
-        return false; // Indica que la operación falló
+        return true; // Indica que la operación falló
     } else {
         // Si la imagen fue guardada correctamente, mostrar mensaje de éxito
         cout << "Imagen BMP modificada guardada como " << archivoSalida.toStdString() << endl;
-        return true; // Indica éxito
+        return false; // Indica éxito
     }
 
 }
@@ -535,6 +538,3 @@ void imagen_rotar_r(unsigned char* resolver,short int &n_bits,int &bits){
     }
 
 }
-
-
-
